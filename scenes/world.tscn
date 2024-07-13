@@ -1,0 +1,40 @@
+[gd_scene load_steps=5 format=3 uid="uid://dq6lh2is1hd73"]
+
+[ext_resource type="Script" path="res://WorldCamera.cs" id="1_kefnk"]
+
+[sub_resource type="PlaneMesh" id="PlaneMesh_74d1p"]
+size = Vector2(6, 6)
+
+[sub_resource type="WorldBoundaryShape3D" id="WorldBoundaryShape3D_4q032"]
+
+[sub_resource type="TorusMesh" id="TorusMesh_mbevr"]
+
+[node name="root" type="Node3D"]
+
+[node name="DirectionalLight3D" type="DirectionalLight3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 0.888385, 0.459099, 0, -0.459099, 0.888385, 0, 5.47368, 0)
+shadow_enabled = true
+
+[node name="DirectionalLight3D2" type="DirectionalLight3D" parent="."]
+transform = Transform3D(0.508651, -0.702307, 0.498035, 0.130083, 0.634504, 0.761894, -0.851089, -0.322752, 0.414099, 0, 5.47368, 0)
+light_energy = 0.4
+shadow_enabled = true
+
+[node name="Camera3D" type="Camera3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1.19249e-08, 1, 0, -1, 1.19249e-08, 0, 20, 0)
+script = ExtResource("1_kefnk")
+
+[node name="ground" type="MeshInstance3D" parent="."]
+transform = Transform3D(10, 0, 0, 0, 10, 0, 0, 0, 10, 0, 0, 0)
+mesh = SubResource("PlaneMesh_74d1p")
+
+[node name="StaticBody3D" type="StaticBody3D" parent="ground"]
+
+[node name="CollisionShape3D" type="CollisionShape3D" parent="ground/StaticBody3D"]
+shape = SubResource("WorldBoundaryShape3D_4q032")
+
+[node name="donut" type="MeshInstance3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.480613, 0)
+mesh = SubResource("TorusMesh_mbevr")
+
+[connection signal="input_event" from="ground/StaticBody3D" to="Camera3D" method="GroundInputEvent"]
