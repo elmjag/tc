@@ -1,0 +1,58 @@
+[gd_scene load_steps=10 format=3 uid="uid://cmv0gjjouc6er"]
+
+[ext_resource type="Script" path="res://Tank.cs" id="1_6obp6"]
+
+[sub_resource type="StandardMaterial3D" id="StandardMaterial3D_k0cef"]
+albedo_color = Color(0.113725, 0.196078, 0.12549, 1)
+
+[sub_resource type="BoxMesh" id="BoxMesh_4t7tn"]
+material = SubResource("StandardMaterial3D_k0cef")
+size = Vector3(4, 1.5, 11)
+
+[sub_resource type="StandardMaterial3D" id="StandardMaterial3D_6fljm"]
+albedo_color = Color(0.149389, 0.185393, 0.0406651, 1)
+
+[sub_resource type="BoxMesh" id="BoxMesh_wcsa0"]
+material = SubResource("StandardMaterial3D_6fljm")
+size = Vector3(3.6, 1, 6.5)
+
+[sub_resource type="StandardMaterial3D" id="StandardMaterial3D_hw5w3"]
+albedo_color = Color(0.176974, 0.407529, 0.260661, 1)
+metallic = 1.0
+metallic_specular = 0.81
+
+[sub_resource type="CylinderMesh" id="CylinderMesh_qoyht"]
+material = SubResource("StandardMaterial3D_hw5w3")
+top_radius = 0.2
+bottom_radius = 0.2
+height = 8.0
+
+[sub_resource type="BoxShape3D" id="BoxShape3D_4dsx2"]
+size = Vector3(4, 1.5, 11)
+
+[sub_resource type="TorusMesh" id="TorusMesh_63m67"]
+inner_radius = 8.0
+outer_radius = 9.0
+
+[node name="tank" type="Node3D"]
+script = ExtResource("1_6obp6")
+
+[node name="base" type="MeshInstance3D" parent="."]
+mesh = SubResource("BoxMesh_4t7tn")
+
+[node name="turret" type="MeshInstance3D" parent="base"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1.2, 0.726)
+mesh = SubResource("BoxMesh_wcsa0")
+
+[node name="gun" type="MeshInstance3D" parent="base/turret"]
+transform = Transform3D(1, 0, 0, 0, -4.37114e-08, -1, 0, 1, -4.37114e-08, 0, 0, -4.83549)
+mesh = SubResource("CylinderMesh_qoyht")
+
+[node name="StaticBody3D" type="StaticBody3D" parent="base"]
+
+[node name="CollisionShape3D" type="CollisionShape3D" parent="base/StaticBody3D"]
+shape = SubResource("BoxShape3D_4dsx2")
+
+[node name="selected" type="MeshInstance3D" parent="base"]
+visible = false
+mesh = SubResource("TorusMesh_63m67")
