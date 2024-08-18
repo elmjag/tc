@@ -25,8 +25,7 @@ public partial class Loader : Node
 
     public Array<Rid> GetGroundRid()
     {
-        var ground = GetNode("/root/root/ground");
-        var body = (StaticBody3D)ground.FindChild("StaticBody3D");
+        var body = (StaticBody3D)Repo.Ground.FindChild("StaticBody3D");
         return new Array<Rid>(new Rid[1] { body.GetRid() });
     }
 

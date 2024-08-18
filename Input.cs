@@ -54,8 +54,6 @@ public partial class Input : Node
     const float GHOST_TANK_ROT_STEP = Mathf.Pi / 16.0f;
 
     MouseProjector mouseProjector;
-    Camera3D camera;
-    Loader loader;
 
     /* drag ground state */
     bool dragGround = false;
@@ -67,15 +65,13 @@ public partial class Input : Node
 
     public override void _Ready()
     {
-        camera = GetNode<Camera3D>(new NodePath("/root/root/gfx/camera"));
-        loader = GetNode<Loader>(new NodePath("/root/root/loader"));
-        mouseProjector = new MouseProjector(camera, loader);
+        mouseProjector = new MouseProjector(Repo.Camera, Repo.Loader);
     }
 
     private void DoDragGround(Vector2 mouse_position)
     {
         var position = mouseProjector.GetGroundPosition(mouse_position);
-        camera.GlobalTranslate(dragStart - position);
+        Repo.Camera.GlobalTranslate(dragStart - position);
     }
 
     private void HandleMouseMotion(InputEventMouseMotion @event)
@@ -109,9 +105,9 @@ public partial class Input : Node
 
         /* zoom in/out by changing camera's Y (height) position */
         var ydelta = zoom_in ? -1.0f : 1.0f;
-        var gpos = camera.GlobalPosition;
-        gpos.Y = Math.Clamp(camera.GlobalPosition.Y + ydelta, MIN_ZOOM, MAX_ZOOM);
-        camera.GlobalPosition = gpos;
+        var gpos = Repo.Camera.GlobalPosition;
+        gpos.Y = Math.Clamp(Repo.Camera.GlobalPosition.Y + ydelta, MIN_ZOOM, MAX_ZOOM);
+        Repo.Camera.GlobalPosition = gpos;
 
         /*
          * adjust X-Z position of the camera
@@ -122,7 +118,8 @@ public partial class Input : Node
         var new_position = mouseProjector.GetGroundPosition(mouse_position);
 
         /* move camera so that mouse is over same position as before changed height */
-        camera.GlobalTranslate(position - new_position);
+        Repo.Camera.GlobalTranslate(position - new_position);
+        Repo.Ground.Position = new Vector3(0, 0, -Repo.Camera.Position.Y);
     }
 
     private void CheckTankSelection(Vector2 mouse_position)
@@ -140,7 +137,10 @@ public partial class Input : Node
         if (selectedTank != null)
         {
             selectedTank.SetRenderStyle(Tank.RenderStyle.Selected);
-            ghostTank = loader.InstantiateGhostTank(selectedTank.Position, selectedTank.Rotation);
+            ghostTank = Repo.Loader.InstantiateGhostTank(
+                selectedTank.Position,
+                selectedTank.Rotation
+            );
         }
         else
         {

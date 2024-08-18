@@ -38,6 +38,7 @@ outer_radius = 9.0
 script = ExtResource("1_6obp6")
 
 [node name="base" type="MeshInstance3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.75, 0)
 mesh = SubResource("BoxMesh_4t7tn")
 
 [node name="turret" type="MeshInstance3D" parent="base"]
