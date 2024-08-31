@@ -34,6 +34,11 @@ public partial class Repo : Node
         get { return _Ground; }
     }
 
+    public static Vector2 GroundPlaneSize
+    {
+        get { return ((PlaneMesh)_Ground.Mesh).Size; }
+    }
+
     public static Loader Loader
     {
         get { return _Loader; }
@@ -42,5 +47,16 @@ public partial class Repo : Node
     public static Overlays Overlays
     {
         get { return _Overlays; }
+    }
+
+    /*
+     * number of pixels in the overlay texture,
+     *
+     * overlay texture is quadratic,
+     * so width and height are equal
+     */
+    public static int OverlaysPixels
+    {
+        get { return _Overlays.Size.X; }
     }
 }

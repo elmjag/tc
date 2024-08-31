@@ -51,6 +51,7 @@ public partial class Input : Node
 {
     const float MIN_ZOOM = 6.0f;
     const float MAX_ZOOM = 200.0f;
+    const float GROUND_SCALER = 2.0f;
     const float GHOST_TANK_ROT_STEP = Mathf.Pi / 16.0f;
 
     MouseProjector mouseProjector;
@@ -63,9 +64,21 @@ public partial class Input : Node
     Tank selectedTank = null;
     Node3D ghostTank = null;
 
+    static void ResizeGroundPlane()
+    {
+        var plane = (PlaneMesh)Repo.Ground.Mesh;
+        plane.Size = Vector2.One * Repo.Camera.GlobalPosition.Y * GROUND_SCALER;
+    }
+
+    /*
+     * adjust the size of the ground mesh to reflect current zoom level
+     *
+     * i.e. make it bigger or smaller as we move camera up and down
+     */
     public override void _Ready()
     {
         mouseProjector = new MouseProjector(Repo.Camera, Repo.Loader);
+        ResizeGroundPlane();
     }
 
     private void DoDragGround(Vector2 mouse_position)
@@ -99,27 +112,29 @@ public partial class Input : Node
         dragGround = false;
     }
 
-    private void ChangeZoom(bool zoom_in, Vector2 mouse_position)
+    static void ChangeZoom(bool zoom_in, Vector2 mouse_position)
     {
-        var position = mouseProjector.GetGroundPosition(mouse_position);
-
         /* zoom in/out by changing camera's Y (height) position */
         var ydelta = zoom_in ? -1.0f : 1.0f;
         var gpos = Repo.Camera.GlobalPosition;
         gpos.Y = Math.Clamp(Repo.Camera.GlobalPosition.Y + ydelta, MIN_ZOOM, MAX_ZOOM);
         Repo.Camera.GlobalPosition = gpos;
 
-        /*
-         * adjust X-Z position of the camera
-         * so that we zoom in/out at the mouse pointer position
-         */
+        ResizeGroundPlane();
 
-        /* project mouse pointer on the ground at the new height position */
-        var new_position = mouseProjector.GetGroundPosition(mouse_position);
+        // TODO: code below does not work anymore, fix it!
+        // /*
+        //  * adjust X-Z position of the camera
+        //  * so that we zoom in/out at the mouse pointer position
+        //  */
 
-        /* move camera so that mouse is over same position as before changed height */
-        Repo.Camera.GlobalTranslate(position - new_position);
-        Repo.Ground.Position = new Vector3(0, 0, -Repo.Camera.Position.Y);
+        // /* project mouse pointer on the ground at the new height position */
+        // var new_position = mouseProjector.GetGroundPosition(mouse_position);
+
+        // /* move camera so that mouse is over same position as before changed height */
+        // var position = mouseProjector.GetGroundPosition(mouse_position);
+        // Repo.Camera.GlobalTranslate(position - new_position);
+        // Repo.Ground.Position = new Vector3(0, 0, -Repo.Camera.Position.Y);
     }
 
     private void CheckTankSelection(Vector2 mouse_position)

@@ -2,10 +2,6 @@ using Godot;
 
 public partial class Overlays : SubViewport
 {
-    Vector2 GroundSize;
-    float XScale;
-    float YScale;
-
     /* selected tank marker widget */
     Node2D SelectedTank;
 
@@ -17,17 +13,17 @@ public partial class Overlays : SubViewport
         var material = (StandardMaterial3D)ground.MaterialOverlay;
         material.AlbedoTexture = GetTexture();
 
-        /* calculate scaling factors for position tranformations */
-        GroundSize = ((PlaneMesh)ground.Mesh).Size;
-        XScale = Size.X / GroundSize.X;
-        YScale = Size.Y / GroundSize.Y;
-
         /* grab reference to selected tank widget */
         SelectedTank = (Node2D)FindChild("SelectedTank");
     }
 
     Vector2 GetLocalPosition(Vector3 pos)
     {
+        /* calculate scaling factors for position tranformations */
+        var GroundSize = Repo.GroundPlaneSize;
+        var XScale = Size.X / GroundSize.X;
+        var YScale = Size.Y / GroundSize.Y;
+
         pos -= Repo.Camera.GlobalPosition;
         float x = (pos.X + (GroundSize.X / 2.0f)) * XScale;
         float y = (pos.Z + (GroundSize.Y / 2.0f)) * YScale;
