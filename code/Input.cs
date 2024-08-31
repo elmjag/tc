@@ -71,7 +71,7 @@ public partial class Input : Node
     private void DoDragGround(Vector2 mouse_position)
     {
         var position = mouseProjector.GetGroundPosition(mouse_position);
-        Repo.Camera.GlobalTranslate(dragStart - position);
+        Repo.CameraRig.GlobalTranslate(dragStart - position);
     }
 
     private void HandleMouseMotion(InputEventMouseMotion @event)
@@ -131,12 +131,12 @@ public partial class Input : Node
             return;
         }
 
-        selectedTank?.SetRenderStyle(Tank.RenderStyle.Default);
         selectedTank = new_selection;
 
         if (selectedTank != null)
         {
-            selectedTank.SetRenderStyle(Tank.RenderStyle.Selected);
+            Repo.Overlays.MarkSelectedTank(selectedTank.GlobalPosition);
+
             ghostTank = Repo.Loader.InstantiateGhostTank(
                 selectedTank.Position,
                 selectedTank.Rotation
@@ -145,6 +145,7 @@ public partial class Input : Node
         else
         {
             ghostTank = null;
+            Repo.Overlays.UnmarkSelectedTank();
         }
     }
 

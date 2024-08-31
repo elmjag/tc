@@ -1,57 +1,65 @@
-[gd_scene load_steps=8 format=3 uid="uid://dq6lh2is1hd73"]
+[gd_scene load_steps=9 format=3 uid="uid://dq6lh2is1hd73"]
 
-[ext_resource type="Script" path="res://scenes/Repo.cs" id="1_5nejf"]
-[ext_resource type="Script" path="res://Loader.cs" id="2_swfs4"]
-[ext_resource type="Script" path="res://Input.cs" id="3_ewwik"]
-[ext_resource type="Script" path="res://scenes/Overlays.cs" id="4_vissd"]
+[ext_resource type="Script" path="res://code/Repo.cs" id="1_5nejf"]
+[ext_resource type="Script" path="res://code/Loader.cs" id="2_swfs4"]
+[ext_resource type="Script" path="res://code/Input.cs" id="3_ewwik"]
+[ext_resource type="Script" path="res://code/Overlays.cs" id="4_vissd"]
+[ext_resource type="Script" path="res://code/SelectedTank.cs" id="5_u70fw"]
 
 [sub_resource type="StandardMaterial3D" id="StandardMaterial3D_cni4l"]
 
 [sub_resource type="PlaneMesh" id="PlaneMesh_exop3"]
-size = Vector2(50, 50)
+size = Vector2(80, 80)
 
 [sub_resource type="WorldBoundaryShape3D" id="WorldBoundaryShape3D_4q032"]
 
 [node name="root" type="Node3D"]
 
-[node name="repo" type="Node" parent="."]
+[node name="Misc" type="Node" parent="."]
+
+[node name="Repo" type="Node" parent="Misc"]
 script = ExtResource("1_5nejf")
 
-[node name="gfx" type="Node" parent="."]
-
-[node name="camera" type="Camera3D" parent="gfx"]
-transform = Transform3D(1, 0, 0, 0, 0.173648, 0.984808, 0, -0.984808, 0.173648, 0, 40, 0)
-
-[node name="ground" type="MeshInstance3D" parent="gfx/camera"]
-transform = Transform3D(1, 0, 0, 0, 0.173648, -0.984808, 0, 0.984808, 0.173648, 0, 0, -40)
-material_overlay = SubResource("StandardMaterial3D_cni4l")
-mesh = SubResource("PlaneMesh_exop3")
-skeleton = NodePath("../../..")
-
-[node name="StaticBody3D" type="StaticBody3D" parent="gfx/camera/ground"]
-
-[node name="CollisionShape3D" type="CollisionShape3D" parent="gfx/camera/ground/StaticBody3D"]
-shape = SubResource("WorldBoundaryShape3D_4q032")
-
-[node name="light1" type="DirectionalLight3D" parent="gfx"]
+[node name="Light1" type="DirectionalLight3D" parent="Misc"]
 transform = Transform3D(1, 0, 0, 0, 0.888385, 0.459099, 0, -0.459099, 0.888385, 0, 5.47368, 0)
 shadow_enabled = true
 
-[node name="light2" type="DirectionalLight3D" parent="gfx"]
-transform = Transform3D(0.508651, -0.702307, 0.498035, 0.130083, 0.634504, 0.761894, -0.851089, -0.322752, 0.4141, 0, 5.47368, 0)
+[node name="Light2" type="DirectionalLight3D" parent="Misc"]
+transform = Transform3D(0.508651, -0.702307, 0.498035, 0.130083, 0.634504, 0.761894, -0.851089, -0.322752, 0.414099, 0, 5.47368, 0)
 light_energy = 0.4
 shadow_enabled = true
 
-[node name="input" type="Node" parent="."]
+[node name="CameraRig" type="Node3D" parent="."]
+
+[node name="Camera" type="Camera3D" parent="CameraRig"]
+transform = Transform3D(1, 0, 0, 0, 0.173648, 0.984808, 0, -0.984808, 0.173648, 0, 40, 0)
+
+[node name="Ground" type="MeshInstance3D" parent="CameraRig"]
+material_overlay = SubResource("StandardMaterial3D_cni4l")
+mesh = SubResource("PlaneMesh_exop3")
+skeleton = NodePath("../..")
+
+[node name="StaticBody3D" type="StaticBody3D" parent="CameraRig/Ground"]
+
+[node name="CollisionShape3D" type="CollisionShape3D" parent="CameraRig/Ground/StaticBody3D"]
+shape = SubResource("WorldBoundaryShape3D_4q032")
+
+[node name="Input" type="Node" parent="."]
 script = ExtResource("3_ewwik")
 
-[node name="loader" type="Node" parent="."]
+[node name="Loader" type="Node" parent="."]
 script = ExtResource("2_swfs4")
 
-[node name="overlays" type="SubViewport" parent="."]
+[node name="Overlays" type="SubViewport" parent="."]
+size = Vector2i(1024, 1024)
 script = ExtResource("4_vissd")
 
-[node name="Line2D" type="Line2D" parent="overlays"]
-points = PackedVector2Array(0, 0, 512, 0, 512, 512, 0, 512)
+[node name="Line2D" type="Line2D" parent="Overlays"]
+points = PackedVector2Array(1, 1, 1024, 1, 1024, 1024, 1, 1024)
 closed = true
+width = 1.0
 default_color = Color(1, 1, 0.203922, 1)
+
+[node name="SelectedTank" type="Node2D" parent="Overlays"]
+visible = false
+script = ExtResource("5_u70fw")
