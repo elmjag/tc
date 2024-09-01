@@ -47,12 +47,142 @@ class MouseProjector
     }
 }
 
+class TankPaths
+{
+    const float GHOST_TANK_ROT_STEP = Mathf.Pi / 16.0f;
+
+    MouseProjector MouseProjector;
+
+    /* selected tank state */
+    Tank SelectedTank = null;
+    Node3D GhostTank = null;
+
+    public TankPaths(MouseProjector mproj)
+    {
+        this.MouseProjector = mproj;
+    }
+
+    void CreateGhostTank(Vector3 position, Vector3 rotation)
+    {
+        GhostTank = Repo.Loader.InstantiateGhostTank(position, rotation);
+    }
+
+    void AddNewWayPoint()
+    {
+        CreateGhostTank(GhostTank.Position, GhostTank.Rotation);
+    }
+
+    void HandleNewTankSelected(Tank selected)
+    {
+        SelectedTank = selected;
+
+        Repo.Overlays.MarkSelectedTank(SelectedTank.GlobalPosition);
+        CreateGhostTank(SelectedTank.Position, SelectedTank.Rotation);
+    }
+
+    void FinishPathCreation()
+    {
+        if (SelectedTank == null)
+        {
+            return;
+        }
+
+        SelectedTank = null;
+        Repo.Loader.RemoveGhostTank(GhostTank);
+        GhostTank = null;
+        Repo.Overlays.UnmarkSelectedTank();
+    }
+
+    void HandleLeftClick(Vector2 position)
+    {
+        if (SelectedTank == null)
+        {
+            /* check if a tank was clicked */
+            var new_selection = MouseProjector.GetTankAtPosition(position);
+            if (new_selection != null)
+            {
+                HandleNewTankSelected(new_selection);
+            }
+        }
+        else
+        {
+            /* add new way point */
+            AddNewWayPoint();
+        }
+    }
+
+    void HandleRightClick()
+    {
+        FinishPathCreation();
+    }
+
+    void HandleScrollWheel(bool scrollUp)
+    {
+        if (GhostTank == null)
+        {
+            return;
+        }
+        /* rotate ghost tank */
+        var angle = scrollUp ? GHOST_TANK_ROT_STEP : -GHOST_TANK_ROT_STEP;
+        GhostTank.Rotate(Vector3.Up, angle);
+    }
+
+    /*
+     * public API
+     */
+    public bool IsActive()
+    {
+        return SelectedTank != null;
+    }
+
+    /*
+    * incoming events hooks
+    */
+
+    public void HandleMouseClick(MouseButton button, Vector2 position)
+    {
+        switch (button)
+        {
+            case MouseButton.Left:
+                HandleLeftClick(position);
+                break;
+            case MouseButton.Right:
+                HandleRightClick();
+                break;
+            case MouseButton.WheelUp:
+                HandleScrollWheel(true);
+                break;
+            case MouseButton.WheelDown:
+                HandleScrollWheel(false);
+                break;
+        }
+    }
+
+    public void HandleMouseMotion(Vector2 position)
+    {
+        if (GhostTank == null)
+        {
+            return;
+        }
+
+        var ground_pos = MouseProjector.GetGroundPosition(position);
+        GhostTank.Position = new Vector3(ground_pos.X, GhostTank.Position.Y, ground_pos.Z);
+    }
+
+    public void HandleKeyPressed(Key key)
+    {
+        if (key == Key.Escape)
+        {
+            FinishPathCreation();
+        }
+    }
+}
+
 public partial class Input : Node
 {
     const float MIN_ZOOM = 6.0f;
     const float MAX_ZOOM = 200.0f;
     const float GROUND_SCALER = 2.0f;
-    const float GHOST_TANK_ROT_STEP = Mathf.Pi / 16.0f;
 
     MouseProjector mouseProjector;
 
@@ -60,9 +190,7 @@ public partial class Input : Node
     bool dragGround = false;
     Vector3 dragStart;
 
-    /* selected tank state */
-    Tank selectedTank = null;
-    Node3D ghostTank = null;
+    TankPaths TankPaths;
 
     static void ResizeGroundPlane()
     {
@@ -78,41 +206,40 @@ public partial class Input : Node
     public override void _Ready()
     {
         mouseProjector = new MouseProjector(Repo.Camera, Repo.Loader);
+
+        TankPaths = new TankPaths(mouseProjector);
+
         ResizeGroundPlane();
     }
 
-    private void DoDragGround(Vector2 mouse_position)
+    void DoDragGround(Vector2 mouse_position)
     {
         var position = mouseProjector.GetGroundPosition(mouse_position);
         Repo.CameraRig.GlobalTranslate(dragStart - position);
     }
 
-    private void HandleMouseMotion(InputEventMouseMotion @event)
+    void HandleMouseMotion(InputEventMouseMotion @event)
     {
+        TankPaths.HandleMouseMotion(@event.Position);
+
         if (dragGround)
         {
             DoDragGround(@event.Position);
         }
-
-        if (selectedTank != null)
-        {
-            var ground_pos = mouseProjector.GetGroundPosition(@event.Position);
-            ghostTank.Position = new Vector3(ground_pos.X, ghostTank.Position.Y, ground_pos.Z);
-        }
     }
 
-    private void StartDraggingGround(Vector2 screen_position)
+    void StartDraggingGround(Vector2 screen_position)
     {
         dragGround = true;
         dragStart = mouseProjector.GetGroundPosition(screen_position);
     }
 
-    private void StopDraggingGround()
+    void StopDraggingGround()
     {
         dragGround = false;
     }
 
-    static void ChangeZoom(bool zoom_in, Vector2 mouse_position)
+    void ChangeZoom(bool zoom_in, Vector2 mouse_position)
     {
         /* zoom in/out by changing camera's Y (height) position */
         var ydelta = zoom_in ? -1.0f : 1.0f;
@@ -137,60 +264,26 @@ public partial class Input : Node
         // Repo.Ground.Position = new Vector3(0, 0, -Repo.Camera.Position.Y);
     }
 
-    private void CheckTankSelection(Vector2 mouse_position)
+    void HandleScrollWheel(bool scroll_up, Vector2 position)
     {
-        var new_selection = mouseProjector.GetTankAtPosition(mouse_position);
-        if (new_selection == selectedTank)
+        if (TankPaths.IsActive())
         {
-            /* already selected tank click */
             return;
         }
 
-        selectedTank = new_selection;
-
-        if (selectedTank != null)
-        {
-            Repo.Overlays.MarkSelectedTank(selectedTank.GlobalPosition);
-
-            ghostTank = Repo.Loader.InstantiateGhostTank(
-                selectedTank.Position,
-                selectedTank.Rotation
-            );
-        }
-        else
-        {
-            ghostTank = null;
-            Repo.Overlays.UnmarkSelectedTank();
-        }
+        ChangeZoom(scroll_up, position);
     }
 
-    private void RotateGhostTank(bool rotate_clock_wise)
-    {
-        var angle = rotate_clock_wise ? GHOST_TANK_ROT_STEP : -GHOST_TANK_ROT_STEP;
-        ghostTank.Rotate(Vector3.Up, angle);
-    }
-
-    private void HandleScrollWheel(bool scroll_up, Vector2 position)
-    {
-        if (ghostTank != null)
-        {
-            RotateGhostTank(!scroll_up);
-        }
-        else
-        {
-            ChangeZoom(scroll_up, position);
-        }
-    }
-
-    private void HandletMouseButton(InputEventMouseButton @event)
+    void HandletMouseButton(InputEventMouseButton @event)
     {
         if (@event.Pressed)
         {
+            TankPaths.HandleMouseClick(@event.ButtonIndex, @event.Position);
+
             switch (@event.ButtonIndex)
             {
                 case MouseButton.Left:
                     StartDraggingGround(@event.Position);
-                    CheckTankSelection(@event.Position);
                     break;
                 case MouseButton.WheelUp:
                     HandleScrollWheel(true, @event.Position);
@@ -211,6 +304,14 @@ public partial class Input : Node
         }
     }
 
+    void HandleKey(InputEventKey @event)
+    {
+        if (@event.Pressed)
+        {
+            TankPaths.HandleKeyPressed(@event.Keycode);
+        }
+    }
+
     public override void _Input(InputEvent @event)
     {
         if (@event is InputEventMouseMotion me)
@@ -220,6 +321,10 @@ public partial class Input : Node
         else if (@event is InputEventMouseButton be)
         {
             HandletMouseButton(be);
+        }
+        else if (@event is InputEventKey ke)
+        {
+            HandleKey(ke);
         }
     }
 }

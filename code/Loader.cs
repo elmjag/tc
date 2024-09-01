@@ -39,6 +39,11 @@ public partial class Loader : Node
         return ghost_tank;
     }
 
+    public void RemoveGhostTank(Node ghostTank)
+    {
+        RemoveChild(ghostTank);
+    }
+
     public override void _Ready()
     {
         var scene = GD.Load<PackedScene>("res://scenes/tank.tscn");
