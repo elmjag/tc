@@ -8,6 +8,16 @@ public partial class Repo : Node
     static Loader _Loader;
     static Overlays _Overlays;
 
+    /* scenes */
+    public static PackedScene TankScene = LoadScene("tank");
+    public static PackedScene GhostTankScene = LoadScene("ghost_tank");
+    public static PackedScene PathOutlineScene = LoadScene("path_outline");
+
+    static PackedScene LoadScene(string name)
+    {
+        return GD.Load<PackedScene>($"res://scenes/{name}.tscn");
+    }
+
     public override void _Ready()
     {
         var root = GetNode<Node3D>("/root/root");

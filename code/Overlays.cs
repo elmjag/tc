@@ -1,9 +1,14 @@
+using System.Collections.Generic;
+using System.Linq;
 using Godot;
 
 public partial class Overlays : SubViewport
 {
     /* selected tank marker widget */
     Node2D SelectedTank;
+
+    /* path outlines */
+    Dictionary<Tank, PathOutline> TankPaths = new Dictionary<Tank, PathOutline>();
 
     public override void _Ready()
     {
@@ -17,32 +22,103 @@ public partial class Overlays : SubViewport
         SelectedTank = (Node2D)FindChild("SelectedTank");
     }
 
-    Vector2 GetLocalPosition(Vector3 pos)
+    void RemoveTankPath(PathOutline path)
     {
-        /* calculate scaling factors for position tranformations */
-        var GroundSize = Repo.GroundPlaneSize;
-        var XScale = Size.X / GroundSize.X;
-        var YScale = Size.Y / GroundSize.Y;
+        /*
+         * remove all ghost tank nodes for this path
+         */
+        var waypointNodes = path.GetWaypointNodes();
 
-        pos -= Repo.Camera.GlobalPosition;
-        float x = (pos.X + (GroundSize.X / 2.0f)) * XScale;
-        float y = (pos.Z + (GroundSize.Y / 2.0f)) * YScale;
+        /* skip the last node, as it's not a ghost tank, but the 'real' one */
+        var ghostNodes = waypointNodes.Take(waypointNodes.Count - 1);
+        foreach (var node in ghostNodes)
+        {
+            node.GetParent().RemoveChild(node);
+        }
 
-        return new Vector2(x, y);
+        /* remove the path outline overlay widget itself */
+        RemoveChild(path);
     }
 
     /*
+     *
      * public API
+     *
      */
 
-    public void MarkSelectedTank(Vector3 tankPosition)
+    public void Redraw()
     {
-        SelectedTank.Position = GetLocalPosition(tankPosition);
+        /* redraw all tank path outlines */
+        foreach (var item in TankPaths)
+        {
+            item.Value.Redraw();
+        }
+    }
+
+    /*
+     * tank selection methods
+     */
+
+    public void MarkSelectedTank(Node3D tank)
+    {
+        SelectedTank.Position = Convert.GetOverlayPosition(tank);
         SelectedTank.Visible = true;
     }
 
     public void UnmarkSelectedTank()
     {
         SelectedTank.Visible = false;
+    }
+
+    /*
+     * tank path outline methods
+     */
+
+    public void StartNewTankPath(Tank tank, Node3D firstWaypoint)
+    {
+        var pathOutline = Repo.PathOutlineScene.Instantiate<PathOutline>();
+
+        pathOutline.AddNewWaypoint(tank); /* start waypoint */
+        pathOutline.AddNewWaypoint(firstWaypoint); /* first goto waypoint */
+
+        if (TankPaths.ContainsKey(tank))
+        {
+            /* remove old path */
+            RemoveTankPath(TankPaths[tank]);
+        }
+
+        TankPaths[tank] = pathOutline;
+        AddChild(pathOutline);
+    }
+
+    public void FinishTankPath(Tank tank)
+    {
+        var pathOutline = TankPaths[tank];
+        pathOutline.RemoveLastWaypoint();
+
+        /*
+         * if there is only one waypoint,
+         * then user have aborted creating the path,
+         * remove it
+         */
+        if (pathOutline.GetWaypointNodes().Count <= 1)
+        {
+            RemoveTankPath(pathOutline);
+        }
+    }
+
+    public void AddNewWaypoint(Tank tank, Node3D waypoint)
+    {
+        TankPaths[tank].AddNewWaypoint(waypoint);
+    }
+
+    public void UpdateLastWaypoint(Tank tank)
+    {
+        TankPaths[tank].Redraw();
+    }
+
+    public bool IsLastWayoutValid(Tank tank)
+    {
+        return TankPaths[tank].IsLastWayoutValid();
     }
 }

@@ -70,14 +70,19 @@ class TankPaths
     void AddNewWayPoint()
     {
         CreateGhostTank(GhostTank.Position, GhostTank.Rotation);
+        Repo.Overlays.AddNewWaypoint(SelectedTank, GhostTank);
     }
 
     void HandleNewTankSelected(Tank selected)
     {
         SelectedTank = selected;
 
-        Repo.Overlays.MarkSelectedTank(SelectedTank.GlobalPosition);
+        var overlays = Repo.Overlays;
+
         CreateGhostTank(SelectedTank.Position, SelectedTank.Rotation);
+
+        overlays.MarkSelectedTank(SelectedTank);
+        overlays.StartNewTankPath(SelectedTank, GhostTank);
     }
 
     void FinishPathCreation()
@@ -87,10 +92,12 @@ class TankPaths
             return;
         }
 
-        SelectedTank = null;
-        Repo.Loader.RemoveGhostTank(GhostTank);
-        GhostTank = null;
+        Repo.Overlays.FinishTankPath(SelectedTank);
         Repo.Overlays.UnmarkSelectedTank();
+        Repo.Loader.RemoveGhostTank(GhostTank);
+
+        SelectedTank = null;
+        GhostTank = null;
     }
 
     void HandleLeftClick(Vector2 position)
@@ -104,7 +111,7 @@ class TankPaths
                 HandleNewTankSelected(new_selection);
             }
         }
-        else
+        else if (Repo.Overlays.IsLastWayoutValid(SelectedTank))
         {
             /* add new way point */
             AddNewWayPoint();
@@ -125,6 +132,7 @@ class TankPaths
         /* rotate ghost tank */
         var angle = scrollUp ? GHOST_TANK_ROT_STEP : -GHOST_TANK_ROT_STEP;
         GhostTank.Rotate(Vector3.Up, angle);
+        Repo.Overlays.UpdateLastWaypoint(SelectedTank);
     }
 
     /*
@@ -167,6 +175,7 @@ class TankPaths
 
         var ground_pos = MouseProjector.GetGroundPosition(position);
         GhostTank.Position = new Vector3(ground_pos.X, GhostTank.Position.Y, ground_pos.Z);
+        Repo.Overlays.UpdateLastWaypoint(SelectedTank);
     }
 
     public void HandleKeyPressed(Key key)
@@ -216,6 +225,7 @@ public partial class Input : Node
     {
         var position = mouseProjector.GetGroundPosition(mouse_position);
         Repo.CameraRig.GlobalTranslate(dragStart - position);
+        Repo.Overlays.Redraw();
     }
 
     void HandleMouseMotion(InputEventMouseMotion @event)
@@ -248,6 +258,7 @@ public partial class Input : Node
         Repo.Camera.GlobalPosition = gpos;
 
         ResizeGroundPlane();
+        Repo.Overlays.Redraw();
 
         // TODO: code below does not work anymore, fix it!
         // /*
