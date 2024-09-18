@@ -1,14 +1,10 @@
-using System.Collections.Generic;
-using System.Linq;
 using Godot;
 
 public partial class Overlays : SubViewport
 {
     /* selected tank marker widget */
     Node2D SelectedTank;
-
-    /* path outlines */
-    Dictionary<Tank, PathOutline> TankPaths = new Dictionary<Tank, PathOutline>();
+    Node2D Paths;
 
     public override void _Ready()
     {
@@ -20,24 +16,7 @@ public partial class Overlays : SubViewport
 
         /* grab reference to selected tank widget */
         SelectedTank = (Node2D)FindChild("SelectedTank");
-    }
-
-    void RemoveTankPath(PathOutline path)
-    {
-        /*
-         * remove all ghost tank nodes for this path
-         */
-        var waypointNodes = path.GetWaypointNodes();
-
-        /* skip the last node, as it's not a ghost tank, but the 'real' one */
-        var ghostNodes = waypointNodes.Take(waypointNodes.Count - 1);
-        foreach (var node in ghostNodes)
-        {
-            node.GetParent().RemoveChild(node);
-        }
-
-        /* remove the path outline overlay widget itself */
-        RemoveChild(path);
+        Paths = (Node2D)FindChild("Paths");
     }
 
     /*
@@ -46,13 +25,11 @@ public partial class Overlays : SubViewport
      *
      */
 
+
     public void Redraw()
     {
         /* redraw all tank path outlines */
-        foreach (var item in TankPaths)
-        {
-            item.Value.Redraw();
-        }
+        Paths.QueueRedraw();
     }
 
     /*
@@ -68,57 +45,5 @@ public partial class Overlays : SubViewport
     public void UnmarkSelectedTank()
     {
         SelectedTank.Visible = false;
-    }
-
-    /*
-     * tank path outline methods
-     */
-
-    public void StartNewTankPath(Tank tank, Node3D firstWaypoint)
-    {
-        var pathOutline = Repo.PathOutlineScene.Instantiate<PathOutline>();
-
-        pathOutline.AddNewWaypoint(tank); /* start waypoint */
-        pathOutline.AddNewWaypoint(firstWaypoint); /* first goto waypoint */
-
-        if (TankPaths.ContainsKey(tank))
-        {
-            /* remove old path */
-            RemoveTankPath(TankPaths[tank]);
-        }
-
-        TankPaths[tank] = pathOutline;
-        AddChild(pathOutline);
-    }
-
-    public void FinishTankPath(Tank tank)
-    {
-        var pathOutline = TankPaths[tank];
-        pathOutline.RemoveLastWaypoint();
-
-        /*
-         * if there is only one waypoint,
-         * then user have aborted creating the path,
-         * remove it
-         */
-        if (pathOutline.GetWaypointNodes().Count <= 1)
-        {
-            RemoveTankPath(pathOutline);
-        }
-    }
-
-    public void AddNewWaypoint(Tank tank, Node3D waypoint)
-    {
-        TankPaths[tank].AddNewWaypoint(waypoint);
-    }
-
-    public void UpdateLastWaypoint(Tank tank)
-    {
-        TankPaths[tank].Redraw();
-    }
-
-    public bool IsLastWayoutValid(Tank tank)
-    {
-        return TankPaths[tank].IsLastWayoutValid();
     }
 }

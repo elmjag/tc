@@ -1,10 +1,12 @@
-[gd_scene load_steps=9 format=3 uid="uid://dq6lh2is1hd73"]
+[gd_scene load_steps=11 format=3 uid="uid://dq6lh2is1hd73"]
 
-[ext_resource type="Script" path="res://code/Repo.cs" id="1_5nejf"]
-[ext_resource type="Script" path="res://code/Loader.cs" id="2_swfs4"]
-[ext_resource type="Script" path="res://code/Input.cs" id="3_ewwik"]
-[ext_resource type="Script" path="res://code/Overlays.cs" id="4_vissd"]
-[ext_resource type="Script" path="res://code/SelectedTank.cs" id="5_u70fw"]
+[ext_resource type="Script" path="res://code/Repo.cs" id="1_fpocs"]
+[ext_resource type="Script" path="res://code/Input.cs" id="2_tf0dm"]
+[ext_resource type="Script" path="res://code/Level.cs" id="3_4ob8j"]
+[ext_resource type="Script" path="res://code/Loader.cs" id="3_k08ab"]
+[ext_resource type="Script" path="res://code/Overlays.cs" id="4_bfxwa"]
+[ext_resource type="Script" path="res://code/SelectedTank.cs" id="5_2surf"]
+[ext_resource type="Script" path="res://code/Paths.cs" id="7_22dxw"]
 
 [sub_resource type="StandardMaterial3D" id="StandardMaterial3D_cni4l"]
 
@@ -13,12 +15,12 @@ size = Vector2(80, 80)
 
 [sub_resource type="WorldBoundaryShape3D" id="WorldBoundaryShape3D_4q032"]
 
-[node name="root" type="Node3D"]
+[node name="Game" type="Node3D"]
 
 [node name="Misc" type="Node" parent="."]
 
 [node name="Repo" type="Node" parent="Misc"]
-script = ExtResource("1_5nejf")
+script = ExtResource("1_fpocs")
 
 [node name="Light1" type="DirectionalLight3D" parent="Misc"]
 transform = Transform3D(1, 0, 0, 0, 0.888385, 0.459099, 0, -0.459099, 0.888385, 0, 5.47368, 0)
@@ -45,14 +47,17 @@ skeleton = NodePath("../..")
 shape = SubResource("WorldBoundaryShape3D_4q032")
 
 [node name="Input" type="Node" parent="."]
-script = ExtResource("3_ewwik")
+script = ExtResource("2_tf0dm")
+
+[node name="Level" type="Node" parent="."]
+script = ExtResource("3_4ob8j")
 
 [node name="Loader" type="Node" parent="."]
-script = ExtResource("2_swfs4")
+script = ExtResource("3_k08ab")
 
 [node name="Overlays" type="SubViewport" parent="."]
 size = Vector2i(1024, 1024)
-script = ExtResource("4_vissd")
+script = ExtResource("4_bfxwa")
 
 [node name="Line2D" type="Line2D" parent="Overlays"]
 points = PackedVector2Array(1, 1, 1024, 1, 1024, 1024, 1, 1024)
@@ -62,4 +67,7 @@ default_color = Color(1, 1, 0.203922, 1)
 
 [node name="SelectedTank" type="Node2D" parent="Overlays"]
 visible = false
-script = ExtResource("5_u70fw")
+script = ExtResource("5_2surf")
+
+[node name="Paths" type="Node2D" parent="Overlays"]
+script = ExtResource("7_22dxw")

@@ -26,11 +26,19 @@ public class Convert
         return new Vector2(x, y);
     }
 
-    /*
-     * calculate the node's position in overlay texture coordinates
-     */
+    ///
+    /// calculate the node's position in overlay texture coordinates
+    ///
     public static Vector2 GetOverlayPosition(Node3D node)
     {
         return ToOverlayPosition(node.Position);
+    }
+
+    ///
+    /// convert a world position to overlay texture coordinates
+    ///
+    public static Vector2 GetOverlayPosition(Vector3 worldPosition)
+    {
+        return ToOverlayPosition(worldPosition);
     }
 }

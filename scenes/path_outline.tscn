@@ -1,6 +1,0 @@
-[gd_scene load_steps=2 format=3 uid="uid://dpiucti56dohd"]
-
-[ext_resource type="Script" path="res://code/PathOutline.cs" id="1_3fm54"]
-
-[node name="PathOutline" type="Node2D"]
-script = ExtResource("1_3fm54")

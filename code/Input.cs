@@ -62,27 +62,24 @@ class TankPaths
         this.MouseProjector = mproj;
     }
 
-    void CreateGhostTank(Vector3 position, Vector3 rotation)
-    {
-        GhostTank = Repo.Loader.InstantiateGhostTank(position, rotation);
-    }
-
     void AddNewWayPoint()
     {
-        CreateGhostTank(GhostTank.Position, GhostTank.Rotation);
-        Repo.Overlays.AddNewWaypoint(SelectedTank, GhostTank);
+        var level = Repo.Level;
+        GhostTank = level.CreateGhostTank(GhostTank.Position, GhostTank.Rotation);
+        level.AddNewWaypoint(SelectedTank, GhostTank);
     }
 
     void HandleNewTankSelected(Tank selected)
     {
+        var overlays = Repo.Overlays;
+        var level = Repo.Level;
+
         SelectedTank = selected;
 
-        var overlays = Repo.Overlays;
-
-        CreateGhostTank(SelectedTank.Position, SelectedTank.Rotation);
+        GhostTank = level.CreateGhostTank(SelectedTank.Position, SelectedTank.Rotation);
 
         overlays.MarkSelectedTank(SelectedTank);
-        overlays.StartNewTankPath(SelectedTank, GhostTank);
+        level.StartNewTankPath(SelectedTank, GhostTank);
     }
 
     void FinishPathCreation()
@@ -92,9 +89,8 @@ class TankPaths
             return;
         }
 
-        Repo.Overlays.FinishTankPath(SelectedTank);
         Repo.Overlays.UnmarkSelectedTank();
-        Repo.Loader.RemoveGhostTank(GhostTank);
+        Repo.Level.FinishPathCreation(SelectedTank);
 
         SelectedTank = null;
         GhostTank = null;
@@ -111,7 +107,7 @@ class TankPaths
                 HandleNewTankSelected(new_selection);
             }
         }
-        else if (Repo.Overlays.IsLastWayoutValid(SelectedTank))
+        else if (Repo.Level.IsLastWayoutValid(SelectedTank))
         {
             /* add new way point */
             AddNewWayPoint();
@@ -132,7 +128,7 @@ class TankPaths
         /* rotate ghost tank */
         var angle = scrollUp ? GHOST_TANK_ROT_STEP : -GHOST_TANK_ROT_STEP;
         GhostTank.Rotate(Vector3.Up, angle);
-        Repo.Overlays.UpdateLastWaypoint(SelectedTank);
+        Repo.Level.UpdateLastWaypoint(SelectedTank);
     }
 
     /*
@@ -175,7 +171,7 @@ class TankPaths
 
         var ground_pos = MouseProjector.GetGroundPosition(position);
         GhostTank.Position = new Vector3(ground_pos.X, GhostTank.Position.Y, ground_pos.Z);
-        Repo.Overlays.UpdateLastWaypoint(SelectedTank);
+        Repo.Level.UpdateLastWaypoint(SelectedTank);
     }
 
     public void HandleKeyPressed(Key key)
@@ -320,6 +316,10 @@ public partial class Input : Node
         if (@event.Pressed)
         {
             TankPaths.HandleKeyPressed(@event.Keycode);
+            if (@event.Keycode == Key.Space)
+            {
+                Repo.Level.StartTurnAnimation();
+            }
         }
     }
 

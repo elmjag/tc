@@ -5,13 +5,13 @@ public partial class Repo : Node
     static Node3D _CameraRig;
     static Camera3D _Camera;
     static MeshInstance3D _Ground;
+    static Level _Level;
     static Loader _Loader;
     static Overlays _Overlays;
 
     /* scenes */
     public static PackedScene TankScene = LoadScene("tank");
     public static PackedScene GhostTankScene = LoadScene("ghost_tank");
-    public static PackedScene PathOutlineScene = LoadScene("path_outline");
 
     static PackedScene LoadScene(string name)
     {
@@ -20,13 +20,14 @@ public partial class Repo : Node
 
     public override void _Ready()
     {
-        var root = GetNode<Node3D>("/root/root");
+        var game = GetNode<Node3D>("/root/Game");
 
-        _CameraRig = root.GetNode<Node3D>("CameraRig");
+        _CameraRig = game.GetNode<Node3D>("CameraRig");
         _Camera = _CameraRig.GetNode<Camera3D>("Camera");
         _Ground = _CameraRig.GetNode<MeshInstance3D>("Ground");
-        _Loader = root.GetNode<Loader>("Loader");
-        _Overlays = root.GetNode<Overlays>("Overlays");
+        _Level = game.GetNode<Level>("Level");
+        _Loader = game.GetNode<Loader>("Loader");
+        _Overlays = game.GetNode<Overlays>("Overlays");
     }
 
     public static Node3D CameraRig
@@ -47,6 +48,11 @@ public partial class Repo : Node
     public static Vector2 GroundPlaneSize
     {
         get { return ((PlaneMesh)_Ground.Mesh).Size; }
+    }
+
+    public static Level Level
+    {
+        get { return _Level; }
     }
 
     public static Loader Loader
