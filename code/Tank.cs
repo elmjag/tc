@@ -1,6 +1,6 @@
 using Godot;
 
-public partial class Tank : Node3D
+public partial class Tank : Vehicle
 {
     [Signal]
     public delegate void AnimationFinishedEventHandler();
@@ -10,7 +10,7 @@ public partial class Tank : Node3D
      * as reported by Time.GetTicksMsec()
      */
     ulong TurnAnimationStartTick = 0;
-    TankPath TankPath;
+    TankTurnActions TurnActions;
 
     public override void _Ready()
     {
@@ -20,7 +20,7 @@ public partial class Tank : Node3D
     public override void _Process(double delta)
     {
         var AnimationTime = Time.GetTicksMsec() - TurnAnimationStartTick;
-        var (pathFinished, posture) = TankPath.GetPosture(AnimationTime);
+        var (pathFinished, posture) = TurnActions.GetAnimatedPosture(AnimationTime);
 
         Position = posture.Position;
         Rotation = new Vector3(Rotation.X, posture.Rotation, Rotation.Z);
@@ -39,21 +39,10 @@ public partial class Tank : Node3D
      *
      */
 
-    public static Tank GetByCollider(StaticBody3D collider)
-    {
-        return (Tank)collider.GetNode("../..");
-    }
-
-    public Rid getColliderRid()
-    {
-        var body = (StaticBody3D)FindChild("StaticBody3D");
-        return body.GetRid();
-    }
-
-    public void StartTurnAnimation(ulong turnAnimationStartTick, TankPath tankPath)
+    public void StartTurnAnimation(ulong turnAnimationStartTick, TankTurnActions turnActions)
     {
         TurnAnimationStartTick = turnAnimationStartTick;
-        TankPath = tankPath;
+        TurnActions = turnActions;
         SetProcess(true);
     }
 }

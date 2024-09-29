@@ -26,7 +26,7 @@ class MouseProjector
 
     public Vector3 GetGroundPosition(Vector2 mouse_position)
     {
-        var result = ProjectMousePosition(mouse_position, loader.GetTankRids());
+        var result = ProjectMousePosition(mouse_position, loader.GetRids(excludeGround: true));
         var position = (Vector3)result["position"];
 
         return position;
@@ -34,7 +34,7 @@ class MouseProjector
 
     public Tank GetTankAtPosition(Vector2 mouse_position)
     {
-        var result = ProjectMousePosition(mouse_position, loader.GetGroundRid());
+        var result = ProjectMousePosition(mouse_position, loader.GetRids(excludeTanks: true));
         Variant collider;
         if (!result.TryGetValue("collider", out collider))
         {
@@ -42,6 +42,19 @@ class MouseProjector
             return null;
         }
 
-        return Tank.GetByCollider((StaticBody3D)collider);
+        return (Tank)Vehicle.GetByCollider((StaticBody3D)collider);
+    }
+
+    public NpcTank GetNpcTankAtPosition(Vector2 mouse_position)
+    {
+        var result = ProjectMousePosition(mouse_position, loader.GetRids(excludeNpcTanks: true));
+        Variant collider;
+        if (!result.TryGetValue("collider", out collider))
+        {
+            /* no tank found at mouse position */
+            return null;
+        }
+
+        return (NpcTank)Vehicle.GetByCollider((StaticBody3D)collider);
     }
 }

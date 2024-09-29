@@ -8,9 +8,11 @@ public partial class Repo : Node
     static Level _Level;
     static Loader _Loader;
     static Overlays _Overlays;
+    static AimMark _AimMark;
 
     /* scenes */
     public static PackedScene TankScene = LoadScene("tank");
+    public static PackedScene NpcTankScene = LoadScene("npc_tank");
     public static PackedScene GhostTankScene = LoadScene("ghost_tank");
 
     static PackedScene LoadScene(string name)
@@ -28,6 +30,7 @@ public partial class Repo : Node
         _Level = game.GetNode<Level>("Level");
         _Loader = game.GetNode<Loader>("Loader");
         _Overlays = game.GetNode<Overlays>("Overlays");
+        _AimMark = _Overlays.GetNode<AimMark>("AimMark");
     }
 
     public static Node3D CameraRig
@@ -63,6 +66,11 @@ public partial class Repo : Node
     public static Overlays Overlays
     {
         get { return _Overlays; }
+    }
+
+    public static AimMark AimMark
+    {
+        get { return _AimMark; }
     }
 
     /*

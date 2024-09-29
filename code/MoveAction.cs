@@ -1,38 +1,5 @@
-using System;
-using System.Collections.Generic;
-using System.Diagnostics;
 using System.Linq;
-using System.Security.Cryptography;
 using Godot;
-using Godot.NativeInterop;
-
-public struct Posture
-{
-    public Vector3 Position;
-    public float Rotation; /* rotation in the plane, radians */
-
-    public Posture(Vector3 Position, float Rotation)
-    {
-        this.Position = Position;
-        this.Rotation = Rotation;
-    }
-
-    public Posture(Node3D node)
-    {
-        Position = node.Position;
-        Rotation = node.Rotation.Y;
-    }
-
-    public Vector3 ForwardDirection()
-    {
-        return Vector3.Forward.Rotated(Vector3.Up, Rotation);
-    }
-
-    public Vector3 BackDirection()
-    {
-        return Vector3.Back.Rotated(Vector3.Up, Rotation);
-    }
-}
 
 abstract class PathSegment
 {
@@ -50,6 +17,8 @@ abstract class PathSegment
 
 class LineSegment : PathSegment
 {
+    Color LINE_COLOR = Colors.Orange;
+
     Vector3 start;
     Vector3 direction;
     float rotation;
@@ -61,7 +30,7 @@ class LineSegment : PathSegment
         var movement = to - start;
         length = movement.Length();
         direction = movement.Normalized();
-        this.rotation = SegmentUtil.GetAngle(direction) + Mathf.Pi / 2.0f;
+        rotation = SegmentUtil.GetAngle(direction) + Mathf.Pi / 2.0f;
     }
 
     /*
@@ -77,7 +46,7 @@ class LineSegment : PathSegment
     {
         var from = Convert.GetOverlayPosition(start);
         var to = Convert.GetOverlayPosition(start + direction * length);
-        canavas.DrawLine(from, to, Colors.Aqua, OverlayPathWidth, true);
+        canavas.DrawLine(from, to, LINE_COLOR, OverlayPathWidth, true);
     }
 
     public override Posture GetPosture(float position)
@@ -276,114 +245,99 @@ class SegmentUtil
     }
 }
 
-public class TankPath
+class MoveAction : TurnAction
 {
-    const float SPEED = 10f; /* meters per seconds */
+    /* the movement speed, in meter/second */
+    const float MOVEMENT_SPEED = 10f;
 
-    List<PathSegment> Segments = new List<PathSegment>();
-    List<Node3D> Waypoints = new List<Node3D>();
+    Posture _From;
+    Posture _To;
 
-    void AddPathSegments(Node3D from, Node3D to)
+    PathSegment[] Segments = null;
+
+    public MoveAction(Posture from, Posture to)
     {
-        var fromPosture = new Posture(from);
-        var toPosture = new Posture(to);
+        _From = from;
+        _To = to;
+        UpdatePathSegments();
+    }
 
-        var arcSegment = SegmentUtil.GetArcSegment(fromPosture, toPosture);
+    void UpdatePathSegments()
+    {
+        var arcSegment = SegmentUtil.GetArcSegment(_From, _To);
         if (arcSegment != null)
         {
-            Segments.Add(new LineSegment(fromPosture.Position, arcSegment.GetStartPosition()));
-            Segments.Add(arcSegment);
-            Segments.Add(new LineSegment(arcSegment.GetEndPosition(), toPosture.Position));
+            var fromSegment = new LineSegment(_From.Position, arcSegment.GetStartPosition());
+            var toSegment = new LineSegment(arcSegment.GetEndPosition(), _To.Position);
+
+            Segments = new PathSegment[] { fromSegment, arcSegment, toSegment };
+        }
+        else
+        {
+            Segments = null;
         }
     }
 
-    (bool, Posture) FindCurrentPosture(float pathPosition)
+    float PathLength()
     {
-        var curPos = pathPosition;
-        foreach (var segment in Segments)
-        {
-            if (curPos < segment.Length)
-            {
-                return (false, segment.GetPosture(curPos));
-            }
-            curPos -= segment.Length;
-        }
-
-        var lastSegment = Segments.Last();
-        return (true, lastSegment.GetPosture(lastSegment.Length));
+        return Segments.Aggregate(0f, (sum, segment) => sum + segment.Length);
     }
 
     /*
-     * public API
-     */
-
-    public void DrawOverlays(Node2D canavas)
+    * public API
+    */
+    public Posture To
     {
+        get { return _To; }
+    }
+
+    public void UpdateToWaypoint(Posture to)
+    {
+        _To = to;
+        UpdatePathSegments();
+    }
+
+    /*
+    * TurnAction implementation
+    */
+    public override bool IsValid()
+    {
+        return Segments != null;
+    }
+
+    public override void DrawOverlays(Node2D canavas)
+    {
+        if (!IsValid())
+        {
+            /* not a valid move action currently, nothing to draw */
+            return;
+        }
+
         foreach (var segment in Segments)
         {
             segment.DrawOverlays(canavas);
         }
     }
 
-    public void AddWaypoint(Node3D waypoint)
+    public override float AnimationLength
     {
-        if (Waypoints.Count() > 0)
+        get { return PathLength() / MOVEMENT_SPEED; }
+    }
+
+    public override Posture GetAnimatedPosture(float animationTick)
+    {
+        var currentPosition = animationTick * MOVEMENT_SPEED;
+
+        foreach (var segment in Segments)
         {
-            AddPathSegments(Waypoints[0], waypoint);
+            if (currentPosition < segment.Length)
+            {
+                return segment.GetPosture(currentPosition);
+            }
+            currentPosition -= segment.Length;
         }
 
-        Waypoints.Insert(0, waypoint);
-    }
-
-    public bool IsLastWaypointValid()
-    {
-        /* this method is only defined after first waypoint have been added */
-        Trace.Assert(Waypoints.Count > 0);
-
-        return (Waypoints.Count - 1) * 3 == Segments.Count;
-    }
-
-    public void UpdateLastWaypoint()
-    {
-        /* this method is only defined after first waypoint have been added */
-        Trace.Assert(Waypoints.Count > 0);
-
-        if (IsLastWaypointValid())
-        {
-            /* remove 3 last path segments */
-            Segments.RemoveRange(Segments.Count - 3, 3);
-        }
-
-        AddPathSegments(Waypoints[1], Waypoints[0]);
-    }
-
-    public List<Node3D> GetWaypoints()
-    {
-        return Waypoints;
-    }
-
-    public (bool, Posture) GetPosture(ulong AnimationTick)
-    {
-        var secsElapsed = AnimationTick / 1000f;
-        var pathPosition = secsElapsed * SPEED;
-
-        return FindCurrentPosture(pathPosition);
-    }
-
-    public Node3D RemoveLastWaypoint()
-    {
-        /* this method is only defined after first waypoint have been added */
-        Trace.Assert(Waypoints.Count > 0);
-
-        if (IsLastWaypointValid())
-        {
-            /* remove 3 last path segments */
-            Segments.RemoveRange(Segments.Count - 3, 3);
-        }
-
-        var removedWaypoint = Waypoints[0];
-        Waypoints.RemoveAt(0);
-
-        return removedWaypoint;
+        var lastSegment = Segments.Last();
+        return lastSegment.GetPosture(lastSegment.Length);
     }
 }
