@@ -1,6 +1,7 @@
+using System;
 using Godot;
 
-public partial class Tank : Node3D
+public partial class Tank : Vehicle
 {
     [Signal]
     public delegate void AnimationFinishedEventHandler();
@@ -10,20 +11,26 @@ public partial class Tank : Node3D
      * as reported by Time.GetTicksMsec()
      */
     ulong TurnAnimationStartTick = 0;
-    TankPath TankPath;
+    TankTurnActions TurnActions;
 
     public override void _Ready()
     {
         SetProcess(false);
     }
 
+    void SetRotation(Node3D node, float rotation)
+    {
+        node.Rotation = new Vector3(Rotation.X, rotation, Rotation.Z);
+    }
+
     public override void _Process(double delta)
     {
         var AnimationTime = Time.GetTicksMsec() - TurnAnimationStartTick;
-        var (pathFinished, posture) = TankPath.GetPosture(AnimationTime);
+        var (pathFinished, posture) = TurnActions.GetAnimatedPosture(AnimationTime);
 
         Position = posture.Position;
-        Rotation = new Vector3(Rotation.X, posture.Rotation, Rotation.Z);
+        SetRotation(this, posture.BaseRotation);
+        SetRotation(Turret, posture.TurretRotation);
 
         /* we have reached the end of the path */
         if (pathFinished)
@@ -39,21 +46,13 @@ public partial class Tank : Node3D
      *
      */
 
-    public static Tank GetByCollider(StaticBody3D collider)
-    {
-        return (Tank)collider.GetNode("../..");
-    }
+    [Export]
+    public Node3D Turret;
 
-    public Rid getColliderRid()
-    {
-        var body = (StaticBody3D)FindChild("StaticBody3D");
-        return body.GetRid();
-    }
-
-    public void StartTurnAnimation(ulong turnAnimationStartTick, TankPath tankPath)
+    public void StartTurnAnimation(ulong turnAnimationStartTick, TankTurnActions turnActions)
     {
         TurnAnimationStartTick = turnAnimationStartTick;
-        TankPath = tankPath;
+        TurnActions = turnActions;
         SetProcess(true);
     }
 }
