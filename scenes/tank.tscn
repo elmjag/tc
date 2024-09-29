@@ -30,22 +30,24 @@ height = 8.0
 [sub_resource type="BoxShape3D" id="BoxShape3D_4dsx2"]
 size = Vector3(4, 1.5, 11)
 
-[node name="tank" type="Node3D"]
+[node name="Tank" type="Node3D" node_paths=PackedStringArray("Turret", "Gun")]
 script = ExtResource("1_6obp6")
+Turret = NodePath("Base/Turret")
+Gun = NodePath("Base/Turret/Gun")
 
-[node name="base" type="MeshInstance3D" parent="."]
+[node name="Base" type="MeshInstance3D" parent="."]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.75, 0)
 mesh = SubResource("BoxMesh_4t7tn")
 
-[node name="turret" type="MeshInstance3D" parent="base"]
+[node name="Turret" type="MeshInstance3D" parent="Base"]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1.2, 0.726)
 mesh = SubResource("BoxMesh_wcsa0")
 
-[node name="gun" type="MeshInstance3D" parent="base/turret"]
+[node name="Gun" type="MeshInstance3D" parent="Base/Turret"]
 transform = Transform3D(1, 0, 0, 0, -4.37114e-08, -1, 0, 1, -4.37114e-08, 0, 0, -4.83549)
 mesh = SubResource("CylinderMesh_qoyht")
 
-[node name="StaticBody3D" type="StaticBody3D" parent="base"]
+[node name="StaticBody3D" type="StaticBody3D" parent="Base"]
 
-[node name="CollisionShape3D" type="CollisionShape3D" parent="base/StaticBody3D"]
+[node name="CollisionShape3D" type="CollisionShape3D" parent="Base/StaticBody3D"]
 shape = SubResource("BoxShape3D_4dsx2")

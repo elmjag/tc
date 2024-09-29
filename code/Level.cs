@@ -1,136 +1,159 @@
 using System.Collections.Generic;
-using System.Linq;
 using Godot;
 
 public partial class Level : Node
 {
     List<Tank> Tanks = new List<Tank>();
-    Dictionary<Tank, TankPath> tankPaths = new Dictionary<Tank, TankPath>();
+
+    Dictionary<Tank, TankTurnActions> TankTurns = new Dictionary<Tank, TankTurnActions>();
+    Dictionary<TankTurnActions, List<Node3D>> GhostTanks =
+        new Dictionary<TankTurnActions, List<Node3D>>();
 
     public override void _Ready()
     {
         CreateTank(new Vector3(-20f, 0, 16f), Mathf.Pi / 4);
         CreateTank(new Vector3(0f, 0, 16f), 0);
         CreateTank(new Vector3(20f, 0, 16f), -(Mathf.Pi / 10));
+
+        CreateNpcTank(new Vector3(-10f, 0, -32f), 0);
+        CreateNpcTank(new Vector3(10f, 0, -32f), 0);
+
+        Repo.TurnAnimator.AnimationFinished += () => RemoveTankTrunActions();
+    }
+
+    void CreateNpcTank(Vector3 position, float rotation)
+    {
+        AddChild(Repo.Loader.InstantiateNpcTank(position, rotation));
     }
 
     void CreateTank(Vector3 position, float rotation)
     {
         var tank = Repo.Loader.InstantiateTank(position, rotation);
-        tank.AnimationFinished += () => RemoveTankPath(tank);
 
         AddChild(tank);
         Tanks.Add(tank);
     }
 
-    void RemoveGhostTanks(TankPath tankPath)
+    void RemoveGhostTanks(Tank tank)
     {
-        var waypoints = tankPath.GetWaypoints();
-        var ghosts = waypoints.Take(waypoints.Count - 1);
-
-        foreach (var node in ghosts)
+        var turnActions = TankTurns[tank];
+        foreach (var node in GhostTanks[turnActions])
         {
             RemoveChild(node);
         }
+
+        GhostTanks.Remove(turnActions);
     }
 
-    void RemoveTankPath(Tank tank)
+    void RemoveTankTrunActions()
     {
-        RemoveGhostTanks(tankPaths[tank]);
-        tankPaths.Remove(tank);
+        foreach (var tank in TankTurns.Keys)
+        {
+            RemoveGhostTanks(tank);
+        }
+        TankTurns.Clear();
         Repo.Overlays.Redraw();
     }
 
     /*
-     * public API
-     */
+    * public API
+    */
 
     public void StartTurnAnimation()
     {
-        var turnAnimationStartTick = Time.GetTicksMsec();
-        foreach (var tank in Tanks)
-        {
-            var tankPath = Repo.Level.GetTankPath(tank);
-            if (tankPath != null)
-            {
-                tank.StartTurnAnimation(turnAnimationStartTick, tankPath);
-            }
-        }
+        Repo.TurnAnimator.StartTurnAnimation(TankTurns);
     }
 
-    public Node3D CreateGhostTank(Vector3 position, Vector3 rotation)
+    public Tank CreateGhostTank(TankPosture posture, TankTurnActions turnActions)
     {
-        var ghostTank = Repo.Loader.InstantiateGhostTank(position, rotation);
+        var ghostTank = Repo.Loader.InstantiateGhostTank(posture);
         AddChild(ghostTank);
+        GhostTanks[turnActions].Insert(0, ghostTank);
 
         return ghostTank;
     }
 
-    /* tank path methods */
+    /*
+    * tank turn actions methods
+    */
 
-    public IEnumerable<TankPath> GetTankPaths()
+    public IEnumerable<TankTurnActions> GetAllTankTurnActions()
     {
-        return tankPaths.Values;
+        return TankTurns.Values;
     }
 
     ///
-    /// returns null if the tank does not have a path created
+    /// returns null if the tank does not have any turn actions created
     ///
-    public TankPath GetTankPath(Tank tank)
+    public TankTurnActions GetTankTurnActions(Tank tank)
     {
-        if (!tankPaths.ContainsKey(tank))
+        if (!TankTurns.ContainsKey(tank))
         {
             return null;
         }
 
-        return tankPaths[tank];
+        return TankTurns[tank];
     }
 
-    public void StartNewTankPath(Tank tank, Node3D firstWaypoint)
+    ///
+    /// return initial ghost tank
+    ///
+    public Tank SetupNewTurn(Tank tank)
     {
-        var tankPath = new TankPath();
-        tankPath.AddWaypoint(tank);
-        tankPath.AddWaypoint(firstWaypoint);
-
-        if (tankPaths.ContainsKey(tank))
+        if (TankTurns.ContainsKey(tank))
         {
-            /* remove old path */
-            RemoveGhostTanks(tankPaths[tank]);
+            RemoveGhostTanks(tank);
         }
 
-        tankPaths[tank] = tankPath;
+        var tankPosture = new TankPosture(tank);
+        var turn = new TankTurnActions(tankPosture);
+        turn.AddMoveAction(tank);
 
+        TankTurns[tank] = turn;
+        GhostTanks[turn] = new List<Node3D>();
+
+        Repo.Overlays.Redraw();
+
+        return CreateGhostTank(tankPosture, turn);
+    }
+
+    ///
+    /// returns new ghost tank instance
+    ///
+    public Tank AddMoveAction(Tank tank)
+    {
+        var turnActions = TankTurns[tank];
+        var startPosture = turnActions.AddMoveAction(tank);
+
+        return CreateGhostTank(startPosture, turnActions);
+    }
+
+    public void UpdateLastMoveAction(Tank tank, Tank moveTo)
+    {
+        TankTurns[tank].UpdateLastMoveAction(new TankPosture(moveTo));
         Repo.Overlays.Redraw();
     }
 
-    public void AddNewWaypoint(Tank tank, Node3D waypoint)
+    public bool LastTankActionValid(Tank tank)
     {
-        tankPaths[tank].AddWaypoint(waypoint);
+        return TankTurns[tank].LastTankActionValid();
     }
 
-    public void UpdateLastWaypoint(Tank tank)
+    public void FinalizeTurnActions(Tank tank)
     {
-        tankPaths[tank].UpdateLastWaypoint();
-        Repo.Overlays.Redraw();
-    }
+        var turnActions = TankTurns[tank];
+        turnActions.RemoveLastAction();
 
-    public bool IsLastWayoutValid(Tank tank)
-    {
-        return tankPaths[tank].IsLastWaypointValid();
-    }
+        /* remove last ghost tank */
+        var ghostTanks = GhostTanks[turnActions];
+        var lastGhostTank = ghostTanks[0];
+        ghostTanks.RemoveAt(0);
+        RemoveChild(lastGhostTank);
 
-    public void FinishPathCreation(Tank tank)
-    {
-        var tankPath = tankPaths[tank];
-
-        /* remove last waypoint */
-        var ghostTank = tankPath.RemoveLastWaypoint();
-        RemoveChild(ghostTank);
-
-        /* this is an 'empty' path now, remove it */
-        if (tankPath.GetWaypoints().Count <= 1)
+        if (turnActions.IsEmpty())
         {
-            tankPaths.Remove(tank);
+            /* this is an 'empty' actions list, remove it */
+            TankTurns.Remove(tank);
         }
 
         Repo.Overlays.Redraw();

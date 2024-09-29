@@ -1,4 +1,4 @@
-[gd_scene load_steps=11 format=3 uid="uid://dq6lh2is1hd73"]
+[gd_scene load_steps=13 format=3 uid="uid://dq6lh2is1hd73"]
 
 [ext_resource type="Script" path="res://code/Repo.cs" id="1_fpocs"]
 [ext_resource type="Script" path="res://code/Input.cs" id="2_tf0dm"]
@@ -6,7 +6,9 @@
 [ext_resource type="Script" path="res://code/Loader.cs" id="3_k08ab"]
 [ext_resource type="Script" path="res://code/Overlays.cs" id="4_bfxwa"]
 [ext_resource type="Script" path="res://code/SelectedTank.cs" id="5_2surf"]
-[ext_resource type="Script" path="res://code/Paths.cs" id="7_22dxw"]
+[ext_resource type="Script" path="res://code/TurnAnimator.cs" id="5_5u5ny"]
+[ext_resource type="Script" path="res://code/AimMark.cs" id="6_weu2l"]
+[ext_resource type="Script" path="res://code/TurnActionsCanvas.cs" id="7_22dxw"]
 
 [sub_resource type="StandardMaterial3D" id="StandardMaterial3D_cni4l"]
 
@@ -34,7 +36,7 @@ shadow_enabled = true
 [node name="CameraRig" type="Node3D" parent="."]
 
 [node name="Camera" type="Camera3D" parent="CameraRig"]
-transform = Transform3D(1, 0, 0, 0, 0.173648, 0.984808, 0, -0.984808, 0.173648, 0, 60, 0)
+transform = Transform3D(1, 0, 0, 0, 0.173648, 0.984808, 0, -0.984808, 0.173648, 0, 100, 0)
 
 [node name="Ground" type="MeshInstance3D" parent="CameraRig"]
 material_overlay = SubResource("StandardMaterial3D_cni4l")
@@ -55,6 +57,9 @@ script = ExtResource("3_4ob8j")
 [node name="Loader" type="Node" parent="."]
 script = ExtResource("3_k08ab")
 
+[node name="TurnAnimator" type="Node" parent="."]
+script = ExtResource("5_5u5ny")
+
 [node name="Overlays" type="SubViewport" parent="."]
 size = Vector2i(1024, 1024)
 script = ExtResource("4_bfxwa")
@@ -65,9 +70,13 @@ closed = true
 width = 1.0
 default_color = Color(1, 1, 0.203922, 1)
 
+[node name="AimMark" type="Node2D" parent="Overlays"]
+visible = false
+script = ExtResource("6_weu2l")
+
 [node name="SelectedTank" type="Node2D" parent="Overlays"]
 visible = false
 script = ExtResource("5_2surf")
 
-[node name="Paths" type="Node2D" parent="Overlays"]
+[node name="TurnActionsCanvas" type="Node2D" parent="Overlays"]
 script = ExtResource("7_22dxw")

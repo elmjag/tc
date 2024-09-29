@@ -7,11 +7,15 @@ public partial class Repo : Node
     static MeshInstance3D _Ground;
     static Level _Level;
     static Loader _Loader;
+    static TurnAnimator _TurnAnimator;
     static Overlays _Overlays;
+    static AimMark _AimMark;
 
     /* scenes */
     public static PackedScene TankScene = LoadScene("tank");
+    public static PackedScene NpcTankScene = LoadScene("npc_tank");
     public static PackedScene GhostTankScene = LoadScene("ghost_tank");
+    public static PackedScene BarrelSmoke = LoadScene("barrel_smoke");
 
     static PackedScene LoadScene(string name)
     {
@@ -27,7 +31,9 @@ public partial class Repo : Node
         _Ground = _CameraRig.GetNode<MeshInstance3D>("Ground");
         _Level = game.GetNode<Level>("Level");
         _Loader = game.GetNode<Loader>("Loader");
+        _TurnAnimator = game.GetNode<TurnAnimator>("TurnAnimator");
         _Overlays = game.GetNode<Overlays>("Overlays");
+        _AimMark = _Overlays.GetNode<AimMark>("AimMark");
     }
 
     public static Node3D CameraRig
@@ -60,9 +66,19 @@ public partial class Repo : Node
         get { return _Loader; }
     }
 
+    public static TurnAnimator TurnAnimator
+    {
+        get { return _TurnAnimator; }
+    }
+
     public static Overlays Overlays
     {
         get { return _Overlays; }
+    }
+
+    public static AimMark AimMark
+    {
+        get { return _AimMark; }
     }
 
     /*

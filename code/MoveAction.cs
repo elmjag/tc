@@ -1,45 +1,13 @@
 using System;
-using System.Collections.Generic;
-using System.Diagnostics;
 using System.Linq;
-using System.Security.Cryptography;
 using Godot;
-using Godot.NativeInterop;
-
-public struct Posture
-{
-    public Vector3 Position;
-    public float Rotation; /* rotation in the plane, radians */
-
-    public Posture(Vector3 Position, float Rotation)
-    {
-        this.Position = Position;
-        this.Rotation = Rotation;
-    }
-
-    public Posture(Node3D node)
-    {
-        Position = node.Position;
-        Rotation = node.Rotation.Y;
-    }
-
-    public Vector3 ForwardDirection()
-    {
-        return Vector3.Forward.Rotated(Vector3.Up, Rotation);
-    }
-
-    public Vector3 BackDirection()
-    {
-        return Vector3.Back.Rotated(Vector3.Up, Rotation);
-    }
-}
 
 abstract class PathSegment
 {
     const float PATH_WIDTH_METERS = 1;
 
     public abstract float Length { get; }
-    public abstract Posture GetPosture(float position);
+    public abstract TankPosture GetPosture(float position);
     public abstract void DrawOverlays(Node2D canavas);
 
     protected float OverlayPathWidth
@@ -50,6 +18,8 @@ abstract class PathSegment
 
 class LineSegment : PathSegment
 {
+    Color LINE_COLOR = Colors.Orange;
+
     Vector3 start;
     Vector3 direction;
     float rotation;
@@ -61,7 +31,7 @@ class LineSegment : PathSegment
         var movement = to - start;
         length = movement.Length();
         direction = movement.Normalized();
-        this.rotation = SegmentUtil.GetAngle(direction) + Mathf.Pi / 2.0f;
+        rotation = Utils.GetVectorAngle(direction) + Mathf.Pi / 2.0f;
     }
 
     /*
@@ -77,10 +47,10 @@ class LineSegment : PathSegment
     {
         var from = Convert.GetOverlayPosition(start);
         var to = Convert.GetOverlayPosition(start + direction * length);
-        canavas.DrawLine(from, to, Colors.Aqua, OverlayPathWidth, true);
+        canavas.DrawLine(from, to, LINE_COLOR, OverlayPathWidth, true);
     }
 
-    public override Posture GetPosture(float position)
+    public override TankPosture GetPosture(float position)
     {
         /* handle 'overshot' at the end of the path */
         if (position > Length)
@@ -90,7 +60,8 @@ class LineSegment : PathSegment
 
         var pos = start + direction * position;
 
-        return new Posture(pos, rotation);
+        /* note that turret roitation is handled by the MoveAction class */
+        return new TankPosture(pos, rotation, 0);
     }
 }
 
@@ -121,8 +92,8 @@ class ArcSegment : PathSegment
 
         /* calculate angles for overlay graphics */
         (overlayStartAngle, overlayEndAngle) = OverAngles(
-            SegmentUtil.GetAngle(startDir),
-            SegmentUtil.GetAngle(endDir)
+            Utils.GetVectorAngle(startDir),
+            Utils.GetVectorAngle(endDir)
         );
     }
 
@@ -162,7 +133,7 @@ class ArcSegment : PathSegment
         get { return length; }
     }
 
-    public override Posture GetPosture(float position)
+    public override TankPosture GetPosture(float position)
     {
         var currentAngle = (position / length) * angleLength;
 
@@ -174,13 +145,14 @@ class ArcSegment : PathSegment
         var currentDir = startDir.Rotated(Vector3.Up, currentAngle);
         var currentPosition = center - currentDir * TURN_RADIUS_METERS;
 
-        var postureRotation = SegmentUtil.GetAngle(currentDir);
+        var postureRotation = Utils.GetVectorAngle(currentDir);
         if (clockwise)
         {
             postureRotation += Mathf.Pi;
         }
 
-        return new Posture(currentPosition, postureRotation);
+        /* note that turret roitation is handled by the MoveAction class */
+        return new TankPosture(currentPosition, postureRotation, 0);
     }
 
     public override void DrawOverlays(Node2D canavas)
@@ -212,31 +184,53 @@ class ArcSegment : PathSegment
     }
 }
 
-class SegmentUtil
+class Utils
 {
-    public static Variant Intersection(Posture from, Posture to)
+    public static Variant Intersection(TankPosture from, TankPosture to)
     {
         var fromPosition = new Vector2(from.Position.X, from.Position.Z);
         var toPosition = new Vector2(to.Position.X, to.Position.Z);
 
-        var fromDir = new Vector2(0f, -1f).Rotated(-from.Rotation);
-        var toDir = new Vector2(0f, 1f).Rotated(-to.Rotation);
+        var fromDir = new Vector2(0f, -1f).Rotated(-from.BaseRotation);
+        var toDir = new Vector2(0f, 1f).Rotated(-to.BaseRotation);
 
         return Geometry2D.LineIntersectsLine(fromPosition, fromDir, toPosition, toDir);
     }
 
-    public static float GetAngle(Vector3 direction)
+    ///
+    /// clamp angle beween -pi..pi
+    ///
+    public static float ClampAngle(float angle)
     {
-        var angle = Vector3.Left.AngleTo(direction);
-        if (Vector3.Left.Cross(direction).Y < 0)
+        if (angle < -MathF.PI)
         {
-            return Mathf.Tau - angle;
+            return angle + MathF.Tau;
+        }
+        if (angle > MathF.PI)
+        {
+            return angle - MathF.Tau;
         }
 
         return angle;
     }
 
-    public static ArcSegment GetArcSegment(Posture from, Posture to)
+    ///
+    /// Get Vector's angle in the 'absolute' ground coordinate system.
+    ///
+    /// This assumes that the Vector in the Ground plane.
+    ///
+    public static float GetVectorAngle(Vector3 direction)
+    {
+        var angle = Vector3.Left.AngleTo(direction);
+        if (Vector3.Left.Cross(direction).Y < 0)
+        {
+            return ClampAngle(Mathf.Tau - angle);
+        }
+
+        return ClampAngle(angle);
+    }
+
+    public static ArcSegment GetArcSegment(TankPosture from, TankPosture to)
     {
         var intersectionVariant = Intersection(from, to);
         if (intersectionVariant.Obj == null)
@@ -274,116 +268,128 @@ class SegmentUtil
 
         return new ArcSegment(arcCenter, startDir, endDir, clockwiseArc);
     }
+
+    public static float AngleDistance(float from, float to)
+    {
+        return ClampAngle(to - from);
+    }
 }
 
-public class TankPath
+class MoveAction : TurnAction
 {
-    const float SPEED = 10f; /* meters per seconds */
+    /* the movement speed, in meter/second */
+    const float MOVEMENT_SPEED = 10f;
 
-    List<PathSegment> Segments = new List<PathSegment>();
-    List<Node3D> Waypoints = new List<Node3D>();
+    Tank Tank;
+    TankPosture _From;
+    TankPosture _To;
 
-    void AddPathSegments(Node3D from, Node3D to)
+    PathSegment[] Segments = null;
+
+    public MoveAction(Tank tank, TankPosture from, TankPosture to)
     {
-        var fromPosture = new Posture(from);
-        var toPosture = new Posture(to);
+        Tank = tank;
+        _From = from;
+        _To = to;
+        UpdatePathSegments();
+    }
 
-        var arcSegment = SegmentUtil.GetArcSegment(fromPosture, toPosture);
+    void UpdatePathSegments()
+    {
+        var arcSegment = Utils.GetArcSegment(_From, _To);
         if (arcSegment != null)
         {
-            Segments.Add(new LineSegment(fromPosture.Position, arcSegment.GetStartPosition()));
-            Segments.Add(arcSegment);
-            Segments.Add(new LineSegment(arcSegment.GetEndPosition(), toPosture.Position));
+            var fromSegment = new LineSegment(_From.Position, arcSegment.GetStartPosition());
+            var toSegment = new LineSegment(arcSegment.GetEndPosition(), _To.Position);
+
+            Segments = new PathSegment[] { fromSegment, arcSegment, toSegment };
+        }
+        else
+        {
+            Segments = null;
         }
     }
 
-    (bool, Posture) FindCurrentPosture(float pathPosition)
+    float PathLength()
     {
-        var curPos = pathPosition;
+        return Segments.Aggregate(0f, (sum, segment) => sum + segment.Length);
+    }
+
+    TankPosture GetAnimatedPosture(float animationTick)
+    {
+        var currentPosition = animationTick * MOVEMENT_SPEED;
+
         foreach (var segment in Segments)
         {
-            if (curPos < segment.Length)
+            if (currentPosition < segment.Length)
             {
-                return (false, segment.GetPosture(curPos));
+                return SetCurrnetTurretRotation(segment.GetPosture(currentPosition), animationTick);
             }
-            curPos -= segment.Length;
+            currentPosition -= segment.Length;
         }
 
-        var lastSegment = Segments.Last();
-        return (true, lastSegment.GetPosture(lastSegment.Length));
+        return GetFinalPosture();
     }
 
     /*
-     * public API
-     */
-
-    public void DrawOverlays(Node2D canavas)
+    * public API
+    */
+    public TankPosture To
     {
+        get { return _To; }
+    }
+
+    public void UpdateToWaypoint(TankPosture to)
+    {
+        _To = to;
+        UpdatePathSegments();
+    }
+
+    /*
+    * TurnAction implementation
+    */
+    public override bool IsValid()
+    {
+        return Segments != null;
+    }
+
+    public override TankPosture GetFinalPosture()
+    {
+        return _To;
+    }
+
+    public override void DrawOverlays(Node2D canavas)
+    {
+        if (!IsValid())
+        {
+            /* not a valid move action currently, nothing to draw */
+            return;
+        }
+
         foreach (var segment in Segments)
         {
             segment.DrawOverlays(canavas);
         }
     }
 
-    public void AddWaypoint(Node3D waypoint)
+    public override float AnimationLength
     {
-        if (Waypoints.Count() > 0)
-        {
-            AddPathSegments(Waypoints[0], waypoint);
-        }
-
-        Waypoints.Insert(0, waypoint);
+        get { return PathLength() / MOVEMENT_SPEED; }
     }
 
-    public bool IsLastWaypointValid()
+    TankPosture SetCurrnetTurretRotation(TankPosture posture, float animationTick)
     {
-        /* this method is only defined after first waypoint have been added */
-        Trace.Assert(Waypoints.Count > 0);
+        var start = _From.TurretRotation;
+        var distance = Utils.AngleDistance(start, _To.TurretRotation);
 
-        return (Waypoints.Count - 1) * 3 == Segments.Count;
+        posture.TurretRotation = start + distance * (animationTick / AnimationLength);
+
+        return posture;
     }
 
-    public void UpdateLastWaypoint()
+    public override AnimationPosture[] GetTurnAnimationPostures(float animationTick)
     {
-        /* this method is only defined after first waypoint have been added */
-        Trace.Assert(Waypoints.Count > 0);
-
-        if (IsLastWaypointValid())
-        {
-            /* remove 3 last path segments */
-            Segments.RemoveRange(Segments.Count - 3, 3);
-        }
-
-        AddPathSegments(Waypoints[1], Waypoints[0]);
-    }
-
-    public List<Node3D> GetWaypoints()
-    {
-        return Waypoints;
-    }
-
-    public (bool, Posture) GetPosture(ulong AnimationTick)
-    {
-        var secsElapsed = AnimationTick / 1000f;
-        var pathPosition = secsElapsed * SPEED;
-
-        return FindCurrentPosture(pathPosition);
-    }
-
-    public Node3D RemoveLastWaypoint()
-    {
-        /* this method is only defined after first waypoint have been added */
-        Trace.Assert(Waypoints.Count > 0);
-
-        if (IsLastWaypointValid())
-        {
-            /* remove 3 last path segments */
-            Segments.RemoveRange(Segments.Count - 3, 3);
-        }
-
-        var removedWaypoint = Waypoints[0];
-        Waypoints.RemoveAt(0);
-
-        return removedWaypoint;
+        var tankPosture = GetAnimatedPosture(animationTick);
+        return new AnimationPosture[] { new AnimationPosture(Tank, tankPosture) };
     }
 }

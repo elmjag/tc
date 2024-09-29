@@ -1,4 +1,6 @@
-[gd_scene load_steps=7 format=3 uid="uid://bxk65x76tegbc"]
+[gd_scene load_steps=8 format=3 uid="uid://bxk65x76tegbc"]
+
+[ext_resource type="Script" path="res://code/Tank.cs" id="1_1lqqx"]
 
 [sub_resource type="StandardMaterial3D" id="StandardMaterial3D_k0cef"]
 transparency = 1
@@ -28,15 +30,17 @@ top_radius = 0.2
 bottom_radius = 0.2
 height = 8.0
 
-[node name="tank" type="Node3D"]
+[node name="Tank" type="Node3D" node_paths=PackedStringArray("Turret")]
+script = ExtResource("1_1lqqx")
+Turret = NodePath("Base/Turret")
 
-[node name="base" type="MeshInstance3D" parent="."]
+[node name="Base" type="MeshInstance3D" parent="."]
 mesh = SubResource("BoxMesh_4t7tn")
 
-[node name="turret" type="MeshInstance3D" parent="base"]
+[node name="Turret" type="MeshInstance3D" parent="Base"]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1.2, 0.726)
 mesh = SubResource("BoxMesh_wcsa0")
 
-[node name="gun" type="MeshInstance3D" parent="base/turret"]
+[node name="Gun" type="MeshInstance3D" parent="Base/Turret"]
 transform = Transform3D(1, 0, 0, 0, -4.37114e-08, -1, 0, 1, -4.37114e-08, 0, 0, -4.83549)
 mesh = SubResource("CylinderMesh_qoyht")

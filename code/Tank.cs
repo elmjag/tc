@@ -1,36 +1,16 @@
 using Godot;
 
-public partial class Tank : Node3D
+public partial class Tank : Vehicle, AnimatedNode
 {
-    [Signal]
-    public delegate void AnimationFinishedEventHandler();
-
-    /*
-     * time stamp when this turn animation started,
-     * as reported by Time.GetTicksMsec()
-     */
-    ulong TurnAnimationStartTick = 0;
-    TankPath TankPath;
-
-    public override void _Ready()
+    void SetRotation(Node3D node, float rotation)
     {
-        SetProcess(false);
+        node.Rotation = new Vector3(Rotation.X, rotation, Rotation.Z);
     }
 
-    public override void _Process(double delta)
+    float GetGunLength()
     {
-        var AnimationTime = Time.GetTicksMsec() - TurnAnimationStartTick;
-        var (pathFinished, posture) = TankPath.GetPosture(AnimationTime);
-
-        Position = posture.Position;
-        Rotation = new Vector3(Rotation.X, posture.Rotation, Rotation.Z);
-
-        /* we have reached the end of the path */
-        if (pathFinished)
-        {
-            SetProcess(false);
-            EmitSignal(SignalName.AnimationFinished);
-        }
+        var mesh = (CylinderMesh)((MeshInstance3D)Gun).Mesh;
+        return mesh.Height;
     }
 
     /*
@@ -39,21 +19,23 @@ public partial class Tank : Node3D
      *
      */
 
-    public static Tank GetByCollider(StaticBody3D collider)
+    [Export]
+    public Node3D Turret;
+
+    [Export]
+    public Node3D Gun;
+
+    public void ApplyPosture(NodePosture posture)
     {
-        return (Tank)collider.GetNode("../..");
+        var tankPosture = (TankPosture)posture;
+        Position = tankPosture.Position;
+        SetRotation(this, tankPosture.BaseRotation);
+        SetRotation(Turret, tankPosture.TurretRotation);
     }
 
-    public Rid getColliderRid()
+    public Vector3 GetBarrelEndPosition()
     {
-        var body = (StaticBody3D)FindChild("StaticBody3D");
-        return body.GetRid();
-    }
-
-    public void StartTurnAnimation(ulong turnAnimationStartTick, TankPath tankPath)
-    {
-        TurnAnimationStartTick = turnAnimationStartTick;
-        TankPath = tankPath;
-        SetProcess(true);
+        var forwardDir = Vector3.Forward.Rotated(Vector3.Up, Gun.GlobalRotation.Y);
+        return Gun.GlobalPosition + forwardDir * GetGunLength() / 2;
     }
 }

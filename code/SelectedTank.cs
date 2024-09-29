@@ -4,7 +4,7 @@ public partial class SelectedTank : Node2D
 {
     const float SELECTION_RADIOUS = 8;
     const float SELECTION_WIDTH = 1;
-    Color SELECTION_COLOR = Colors.Red;
+    Color SELECTION_COLOR = Colors.Aqua;
 
     public override void _Draw()
     {

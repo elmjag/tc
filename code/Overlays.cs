@@ -4,7 +4,7 @@ public partial class Overlays : SubViewport
 {
     /* selected tank marker widget */
     Node2D SelectedTank;
-    Node2D Paths;
+    Node2D TurnActionsCanvas;
 
     public override void _Ready()
     {
@@ -16,7 +16,7 @@ public partial class Overlays : SubViewport
 
         /* grab reference to selected tank widget */
         SelectedTank = (Node2D)FindChild("SelectedTank");
-        Paths = (Node2D)FindChild("Paths");
+        TurnActionsCanvas = (Node2D)FindChild("TurnActionsCanvas");
     }
 
     /*
@@ -29,7 +29,7 @@ public partial class Overlays : SubViewport
     public void Redraw()
     {
         /* redraw all tank path outlines */
-        Paths.QueueRedraw();
+        TurnActionsCanvas.QueueRedraw();
     }
 
     /*

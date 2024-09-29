@@ -7,20 +7,20 @@ class TankPaths
 
     MouseProjector MouseProjector;
 
-    /* selected tank state */
     Tank SelectedTank = null;
-    Node3D GhostTank = null;
+    bool RotateTurret = false;
+    NpcTank SelectedNpcTank = null;
+    Tank GhostTank = null;
 
     public TankPaths(MouseProjector mproj)
     {
-        this.MouseProjector = mproj;
+        MouseProjector = mproj;
     }
 
     void AddNewWayPoint()
     {
         var level = Repo.Level;
-        GhostTank = level.CreateGhostTank(GhostTank.Position, GhostTank.Rotation);
-        level.AddNewWaypoint(SelectedTank, GhostTank);
+        GhostTank = level.AddMoveAction(SelectedTank);
     }
 
     void HandleNewTankSelected(Tank selected)
@@ -30,10 +30,8 @@ class TankPaths
 
         SelectedTank = selected;
 
-        GhostTank = level.CreateGhostTank(SelectedTank.Position, SelectedTank.Rotation);
-
         overlays.MarkSelectedTank(SelectedTank);
-        level.StartNewTankPath(SelectedTank, GhostTank);
+        GhostTank = level.SetupNewTurn(SelectedTank);
     }
 
     void FinishPathCreation()
@@ -44,7 +42,7 @@ class TankPaths
         }
 
         Repo.Overlays.UnmarkSelectedTank();
-        Repo.Level.FinishPathCreation(SelectedTank);
+        Repo.Level.FinalizeTurnActions(SelectedTank);
 
         SelectedTank = null;
         GhostTank = null;
@@ -52,6 +50,8 @@ class TankPaths
 
     void HandleLeftClick(Vector2 position)
     {
+        var level = Repo.Level;
+
         if (SelectedTank == null)
         {
             /* check if a tank was clicked */
@@ -61,7 +61,11 @@ class TankPaths
                 HandleNewTankSelected(new_selection);
             }
         }
-        else if (Repo.Level.IsLastWayoutValid(SelectedTank))
+        else if (SelectedNpcTank != null)
+        {
+            AddNewWayPoint();
+        }
+        else if (level.LastTankActionValid(SelectedTank))
         {
             /* add new way point */
             AddNewWayPoint();
@@ -79,10 +83,52 @@ class TankPaths
         {
             return;
         }
+
         /* rotate ghost tank */
         var angle = scrollUp ? GHOST_TANK_ROT_STEP : -GHOST_TANK_ROT_STEP;
-        GhostTank.Rotate(Vector3.Up, angle);
-        Repo.Level.UpdateLastWaypoint(SelectedTank);
+        if (RotateTurret)
+        {
+            GhostTank.Turret.Rotate(Vector3.Up, angle);
+        }
+        else
+        {
+            GhostTank.Rotate(Vector3.Up, angle);
+        }
+
+        Repo.Level.UpdateLastMoveAction(SelectedTank, GhostTank);
+    }
+
+    void MaybeCreateFireAction(Tank shooter, Node3D npcTank)
+    {
+        var level = Repo.Level;
+        var actions = level.GetTankTurnActions(SelectedTank);
+        var lastAction = actions.GetLastAction();
+
+        if (lastAction is FireAction)
+        {
+            /* already fire action, nothing to do */
+            return;
+        }
+
+        actions.RemoveLastAction();
+        actions.AddFireAction(shooter, npcTank);
+        Repo.Overlays.Redraw();
+    }
+
+    void MaybeCreateMoveAction(Tank tank)
+    {
+        var level = Repo.Level;
+        var actions = level.GetTankTurnActions(SelectedTank);
+        var lastAction = actions.GetLastAction();
+
+        if (lastAction is MoveAction)
+        {
+            /* already fire action, nothing to do */
+            return;
+        }
+
+        actions.RemoveLastAction();
+        actions.AddMoveAction(tank);
     }
 
     /*
@@ -123,16 +169,41 @@ class TankPaths
             return;
         }
 
-        var ground_pos = MouseProjector.GetGroundPosition(position);
-        GhostTank.Position = new Vector3(ground_pos.X, GhostTank.Position.Y, ground_pos.Z);
-        Repo.Level.UpdateLastWaypoint(SelectedTank);
+        SelectedNpcTank = MouseProjector.GetNpcTankAtPosition(position);
+        if (SelectedNpcTank != null)
+        {
+            GhostTank.Visible = false;
+
+            var aimMark = Repo.AimMark;
+            aimMark.Visible = true;
+            aimMark.Position = Convert.GetOverlayPosition(SelectedNpcTank.Position);
+
+            MaybeCreateFireAction(SelectedTank, SelectedNpcTank);
+        }
+        else
+        {
+            GhostTank.Visible = true;
+            Repo.AimMark.Visible = false;
+
+            MaybeCreateMoveAction(SelectedTank);
+
+            GhostTank.Position = MouseProjector.GetGroundPosition(position);
+            Repo.Level.UpdateLastMoveAction(SelectedTank, GhostTank);
+        }
     }
 
-    public void HandleKeyPressed(Key key)
+    public void HandleKey(InputEventKey @event)
     {
-        if (key == Key.Escape)
+        if (@event.Keycode == Key.Escape && @event.Pressed)
         {
             FinishPathCreation();
+            return;
+        }
+
+        if (@event.Keycode == Key.Shift)
+        {
+            RotateTurret = @event.Pressed;
+            return;
         }
     }
 }
@@ -141,6 +212,7 @@ public partial class Input : Node
 {
     const float MIN_ZOOM = 6.0f;
     const float MAX_ZOOM = 200.0f;
+    const float ZOOM_STEP = 12.0f;
     const float GROUND_SCALER = 2.0f;
 
     MouseProjector mouseProjector;
@@ -202,7 +274,7 @@ public partial class Input : Node
     void ChangeZoom(bool zoom_in, Vector2 mouse_position)
     {
         /* zoom in/out by changing camera's Y (height) position */
-        var ydelta = zoom_in ? -1.0f : 1.0f;
+        var ydelta = zoom_in ? -ZOOM_STEP : ZOOM_STEP;
         var gpos = Repo.Camera.GlobalPosition;
         gpos.Y = Math.Clamp(Repo.Camera.GlobalPosition.Y + ydelta, MIN_ZOOM, MAX_ZOOM);
         Repo.Camera.GlobalPosition = gpos;
@@ -267,9 +339,9 @@ public partial class Input : Node
 
     void HandleKey(InputEventKey @event)
     {
+        TankPaths.HandleKey(@event);
         if (@event.Pressed)
         {
-            TankPaths.HandleKeyPressed(@event.Keycode);
             if (@event.Keycode == Key.Space)
             {
                 Repo.Level.StartTurnAnimation();

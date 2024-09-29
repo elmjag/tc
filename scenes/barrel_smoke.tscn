@@ -1,0 +1,17 @@
+[gd_scene load_steps=3 format=3 uid="uid://pbhespjt4u0t"]
+
+[ext_resource type="Script" path="res://code/BarrelSmoke.cs" id="1_o52aj"]
+
+[sub_resource type="SphereMesh" id="SphereMesh_v77y3"]
+resource_local_to_scene = true
+radius = 0.2
+height = 0.2
+is_hemisphere = true
+
+[node name="BarrelSmoke" type="Node3D" node_paths=PackedStringArray("SmokeCloud")]
+script = ExtResource("1_o52aj")
+SmokeCloud = NodePath("SmokeCloud")
+
+[node name="SmokeCloud" type="MeshInstance3D" parent="."]
+transform = Transform3D(4.37114e-08, 1, 8.74228e-08, 1, -4.37114e-08, 0, 3.82137e-15, 8.74228e-08, -1, 0, 0, 0)
+mesh = SubResource("SphereMesh_v77y3")
